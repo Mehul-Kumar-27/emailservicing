@@ -15,7 +15,7 @@ const (
 
 func main() {
 	logger := log.New(os.Stdout, "API", log.Lshortfile)
-	logger.Println("Starting API server")
+	logger.Printf("Starting API server %s", webPort)
 
 	app := handellers.NewServerModel()
 
