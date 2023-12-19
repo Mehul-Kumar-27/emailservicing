@@ -1,5 +1,6 @@
 FRONT_END_BINARY=frontApp
 BROKER_BINARY=brokerApp
+AUTH_BINARY=authApp
 
 
 up: 
@@ -9,7 +10,7 @@ up:
 
 
 ## This command will stop all the docker images and build them again
-up_build: build_broker
+up_build: build_broker build_auth 
 	@echo "Stopping the docker images ..."
 	docker-compose down
 	@echo "Building the docker images when required ... and starting the docker images"
@@ -24,6 +25,11 @@ down:
 build_broker:
 	@echo "Building broker binary..."
 	cd ../broker-service && env GOOS=linux CGO_ENABLED=0 go build -o ${BROKER_BINARY} ./cmd
+	@echo "Done!"
+
+build_auth:
+	@echo "Building broker binary..."
+	cd ../authentication-service && env GOOS=linux CGO_ENABLED=0 go build -o ${AUTH_BINARY} ./api
 	@echo "Done!"
 
 ## build_front: builds the frone end binary
