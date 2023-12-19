@@ -19,13 +19,15 @@ const (
 )
 
 func main() {
-	log.Printf("Starting the authentication service at port %s", webPort)
+
 
 	connection := connectToDB()
 
 	if connection == nil {
 		log.Panic("Could not connect to database")
 	}
+
+	log.Printf("Starting the authentication service at port %s", webPort)
 
 	app := handellers.NewDatabaseModel(connection)
 

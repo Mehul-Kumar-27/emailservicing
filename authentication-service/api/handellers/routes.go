@@ -20,5 +20,8 @@ func (database *DatabaseModel) Routes() http.Handler {
 		AllowCredentials: true,
 	}))
 
+	mux.Use(middleware.Heartbeat("/ping"))
+	
+
 	return mux;
 }

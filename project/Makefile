@@ -19,7 +19,7 @@ up_build: build_broker build_auth
 down:
 	@echo "Stopping the docker images ..."
 	docker-compose down
-	@echo "Docker images stopped !"
+	@echo "Docker images stoppcded !"
 
 ## build_broker: builds the broker binary as a linux executable
 build_broker:
