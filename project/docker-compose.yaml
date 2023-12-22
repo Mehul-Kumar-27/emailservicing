@@ -11,6 +11,10 @@ services:
     deploy:
       mode: replicated
       replicas: 1
+    depends_on:
+      - auth-services
+    networks:
+      - email-network
 
   auth-services:
     build:
@@ -24,18 +28,26 @@ services:
       replicas: 1
     environment:
       - DSN=host=postgres port=5432 user=postgres password=postgres dbname=users sslmode=disable timeZone=UTC connect_timeout=5
+    networks:
+      - email-network
 
   postgres:
-      image: postgres:latest
-      restart: always
-      ports:
-        - 8002:5432
-      environment:
-        POSTGRES_USER: postgres
-        POSTGRES_PASSWORD: postgres
-        POSTGRES_DB: users 
-      volumes:
-        - ./db-data/postgres/:/var/lib/postgresql/data/
-      deploy:
-        mode: replicated
-        replicas: 1
+    image: postgres:latest
+    restart: always
+    ports:
+      - 8002:5432
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: users
+    volumes:
+      - ./db-data/postgres/:/var/lib/postgresql/data/
+    deploy:
+      mode: replicated
+      replicas: 1
+    networks:
+      - email-network
+
+networks:
+  email-network:
+    driver: bridge

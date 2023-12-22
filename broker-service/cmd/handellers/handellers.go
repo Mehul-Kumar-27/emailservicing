@@ -1,6 +1,10 @@
 package handellers
 
 import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 )
 
@@ -11,6 +15,16 @@ func NewServerModel() *ServerModel {
 	return &ServerModel{}
 }
 
+type RequestPayload struct {
+	Action string      `json:"action"`
+	Auth   AuthPayLoad `json:"auth,omitempty"`
+}
+
+type AuthPayLoad struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
 func (app *ServerModel) Broker(w http.ResponseWriter, r *http.Request) {
 	payload := jsonResponse{
 		Error:   false,
@@ -18,4 +32,75 @@ func (app *ServerModel) Broker(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_ = app.writeJson(w, http.StatusOK, payload)
+}
+
+func (app *ServerModel) HandleSubmission(w http.ResponseWriter, r *http.Request) {
+	var requestPayload RequestPayload
+
+	err := app.readJson(r, w, &requestPayload)
+	if err != nil {
+		app.writeJsonError(w, err)
+		return
+	}
+
+	switch requestPayload.Action {
+	case "auth":
+		app.authenticate(w, requestPayload.Auth)
+	default:
+		app.writeJsonError(w, errors.New("unknon method called"))
+	}
+}
+
+func (app *ServerModel) authenticate(w http.ResponseWriter, a AuthPayLoad) {
+	fmt.Println("Authenticating")
+	jsonData, err := json.MarshalIndent(a, "", "\t")
+	if err != nil {
+		app.writeJsonError(w, err)
+		return
+	}
+
+	request, err := http.NewRequest("POST", "http://auth-services:8080/authenticate", bytes.NewBuffer(jsonData))
+	if err != nil {
+		app.writeJsonError(w, err)
+		return
+	}
+
+	client := &http.Client{}
+	response, err := client.Do(request)
+	if err != nil {
+		app.writeJsonError(w, err)
+		return
+	}
+
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusUnauthorized {
+		app.writeJsonError(w, errors.New("invalid credentials"))
+		return
+	} else if response.StatusCode != http.StatusOK {
+		app.writeJsonError(w, errors.New("could not authenticate"))
+		return
+	}
+
+	var jsonFromService jsonResponse
+
+	err = json.NewDecoder(response.Body).Decode(&jsonFromService)
+	if err != nil {
+		app.writeJsonError(w, err)
+		return
+	}
+
+	if jsonFromService.Error {
+		app.writeJsonError(w, errors.New(jsonFromService.Message), http.StatusUnauthorized)
+		return
+	}
+
+	var payloadToSend jsonResponse
+
+	payloadToSend.Error = false
+	payloadToSend.Message = "Authenticated"
+	payloadToSend.Data = jsonFromService.Data
+
+	app.writeJson(w, http.StatusOK, payloadToSend)
+
 }

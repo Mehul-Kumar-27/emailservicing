@@ -10,13 +10,13 @@ up:
 
 
 ## This command will stop all the docker images and build them again
-up_build: build_broker build_auth 
+up_build: build_broker build_auth start
 	@echo "Stopping the docker images ..."
 	docker-compose down
 	@echo "Building the docker images when required ... and starting the docker images"
 	docker-compose up --build -d
 
-down:
+down: stop
 	@echo "Stopping the docker images ..."
 	docker-compose down
 	@echo "Docker images stoppcded !"
@@ -35,13 +35,13 @@ build_auth:
 ## build_front: builds the frone end binary
 build_front:
 	@echo "Building front end binary..."
-	cd ../frontend && env CGO_ENABLED=0 go build -o ${FRONT_END_BINARY} ./web
+	cd ../frontend/web && env CGO_ENABLED=0 go build -o ${FRONT_END_BINARY}
 	@echo "Done!"
 
 ## start: starts the front end
 start: build_front
 	@echo "Starting front end"
-	cd ../frontend && ./${FRONT_END_BINARY} &
+	cd ../frontend/web && ./${FRONT_END_BINARY} &
 
 ## stop: stop the front end
 stop:
