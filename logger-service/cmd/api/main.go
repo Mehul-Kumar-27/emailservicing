@@ -2,7 +2,11 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"logger-service/cmd/api/handellers"
+	"logger-service/cmd/data"
+	"net/http"
 	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
@@ -12,13 +16,11 @@ import (
 const (
 	port     = "8080"
 	rpcPort  = "5001"
-	mongoURI = "mongodb://mongo:27017"
+	mongoURI = "mongodb://localhost:27017"
 	gRPCPort = "50001"
 )
 
-var mongClient = mongo.Client{}
-
-type LoggerService struct{}
+var client = mongo.Client{}
 
 func main() {
 	// connect to mongo
@@ -26,8 +28,39 @@ func main() {
 	if err != nil {
 		log.Panic("Error while connecting to mongo: ", err)
 	}
-	mongClient = *mongoClient
+	client = *mongoClient
 
+	app := handellers.LoggerService{
+		Modles: data.New(&client),
+	}
+
+	go startServer(app)
+
+	ctx, cancle := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancle()
+
+	// close the connection to mongo
+	defer func() {
+		if err := client.Disconnect(ctx); err != nil {
+			log.Panic("Error while disconnecting from mongo: ", err)
+		}
+	}()
+
+	/// start the serer
+
+}
+
+func startServer(app handellers.LoggerService) {
+	srv := &http.Server{
+		Addr:    fmt.Sprintf(":%s", port),
+		Handler: app.Routes(),
+	}
+
+	log.Println("Starting server on port: ", port)
+
+	if err := srv.ListenAndServe(); err != nil {
+		log.Panic("Error while starting server: ", err)
+	}
 }
 
 func connectTOmongo() (*mongo.Client, error) {
