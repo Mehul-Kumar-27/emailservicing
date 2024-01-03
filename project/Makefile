@@ -1,6 +1,7 @@
 FRONT_END_BINARY=frontApp
 BROKER_BINARY=brokerApp
 AUTH_BINARY=authApp
+LOG_BINARY=loggerServiceApp
 
 
 up: 
@@ -10,7 +11,7 @@ up:
 
 
 ## This command will stop all the docker images and build them again
-up_build: build_broker build_auth start
+up_build: build_broker build_auth build_logger
 	@echo "Stopping the docker images ..."
 	docker-compose down
 	@echo "Building the docker images when required ... and starting the docker images"
@@ -25,6 +26,11 @@ down: stop
 build_broker:
 	@echo "Building broker binary..."
 	cd ../broker-service && env GOOS=linux CGO_ENABLED=0 go build -o ${BROKER_BINARY} ./cmd
+	@echo "Done!"
+
+build_logger:
+	@echo "Building logger binary..."
+	cd ../logger-service && env GOOS=linux CGO_ENABLED=0 go build -o ${LOG_BINARY} ./cmd/api
 	@echo "Done!"
 
 build_auth:

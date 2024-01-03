@@ -2,7 +2,9 @@ package handellers
 
 import (
 	data "authentication-service/api/data"
+	"bytes"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -50,6 +52,46 @@ func (dataBaseModel *DatabaseModel) AuthenticateUser(w http.ResponseWriter, r *h
 		Data:    user,
 	}
 
+	err = dataBaseModel.createLog("login", fmt.Sprintf("user %s logged in", user.Email))
+	if err != nil {
+		WriteJsonError(w, err, http.StatusInternalServerError)
+		return
+	}
+
 	WriteJson(w, http.StatusOK, payload)
+
+}
+
+func (app *DatabaseModel) createLog(name, data string) error {
+	var entry struct {
+		Name string `json:"name"`
+		Data string `json:"data"`
+	}
+
+	entry.Name = name
+	entry.Data = data
+
+	jsonData, _ := json.Marshal(entry)
+
+	logServiceUrl := "http://log-service:8080/logs"
+	req, err := http.NewRequest("POST", logServiceUrl, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	response, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusAccepted {
+		return errors.New("error creating log")
+	}
+
+	return nil
 
 }

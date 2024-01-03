@@ -15,6 +15,18 @@ services:
       - auth-services
     networks:
       - email-network
+  logger-services:
+    build:
+      context: ./../logger-service
+      dockerfile: ./../logger-service/logger-service.dockerfile
+    restart: always
+    deploy:
+      mode: replicated
+      replicas: 1
+    depends_on:
+      - mongo
+    networks:
+      - email-network
 
   auth-services:
     build:

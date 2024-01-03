@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 )
 
@@ -16,13 +17,19 @@ func NewServerModel() *ServerModel {
 }
 
 type RequestPayload struct {
-	Action string      `json:"action"`
-	Auth   AuthPayLoad `json:"auth,omitempty"`
+	Action string        `json:"action"`
+	Auth   AuthPayLoad   `json:"auth,omitempty"`
+	Log    LoggerPayload `json:"log,omitempty"`
 }
 
 type AuthPayLoad struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
+}
+
+type LoggerPayload struct {
+	Name string `json:"name,omitempty"`
+	Data string `json:"data,omitempty"`
 }
 
 func (app *ServerModel) Broker(w http.ResponseWriter, r *http.Request) {
@@ -46,9 +53,47 @@ func (app *ServerModel) HandleSubmission(w http.ResponseWriter, r *http.Request)
 	switch requestPayload.Action {
 	case "auth":
 		app.authenticate(w, requestPayload.Auth)
+	case "log":
+		app.makeLog(w, requestPayload.Log)
 	default:
 		app.writeJsonError(w, errors.New("unknon method called"))
 	}
+}
+
+func (app *ServerModel) makeLog(w http.ResponseWriter, a LoggerPayload) {
+	log.Panicln("Creating a log by the broker service")
+	jsonData, err := json.MarshalIndent(a, "", "\t")
+	if err != nil {
+		app.writeJsonError(w, err)
+		return
+	}
+
+	request, err := http.NewRequest("POST", "http://logger-service:8080/log", bytes.NewBuffer(jsonData))
+	if err != nil {
+		app.writeJsonError(w, err)
+		return
+	}
+
+	request.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	response, err := client.Do(request)
+	if err != nil {
+		app.writeJsonError(w, err)
+		return
+	}
+	if response.StatusCode != http.StatusAccepted {
+		app.writeJsonError(w, errors.New("could not create log"))
+		return
+
+	}
+
+	jsonPaylod := jsonResponse{
+		Error:   false,
+		Message: "Log created",
+	}
+
+	app.writeJson(w, http.StatusAccepted, jsonPaylod)
 }
 
 func (app *ServerModel) authenticate(w http.ResponseWriter, a AuthPayLoad) {

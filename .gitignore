@@ -1,5 +1,6 @@
 broker-service/brokerApp/
 authentication-service/authApp
 frontend/web/frontApp
-project/db-data/postgres/
+project/db-data
+
 

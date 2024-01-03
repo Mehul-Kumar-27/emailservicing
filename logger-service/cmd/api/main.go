@@ -4,66 +4,90 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"logger-service/cmd/api/handellers"
-	"logger-service/cmd/data"
-	"net/http"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+
+	"logger-service/cmd/api/handellers"
+	"logger-service/cmd/data"
+	"net/http"
 )
 
 const (
 	port     = "8080"
-	rpcPort  = "5001"
-	mongoURI = "mongodb://localhost:27017"
-	gRPCPort = "50001"
+	mongoURI = "mongodb://mongo:27017"
 )
 
 var client = mongo.Client{}
+var wg sync.WaitGroup
 
 func main() {
-	// connect to mongo
-	mongoClient, err := connectTOmongo()
+	// Connect to mongo
+	mongoClient, err := connectToMongo()
 	if err != nil {
 		log.Panic("Error while connecting to mongo: ", err)
+	} else {
+		log.Println("Connected to mongo")
 	}
 	client = *mongoClient
 
+	// Create logger service
 	app := handellers.LoggerService{
 		Modles: data.New(&client),
 	}
 
-	go startServer(app)
-
-	ctx, cancle := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancle()
-
-	// close the connection to mongo
-	defer func() {
-		if err := client.Disconnect(ctx); err != nil {
-			log.Panic("Error while disconnecting from mongo: ", err)
-		}
-	}()
-
-	/// start the serer
-
-}
-
-func startServer(app handellers.LoggerService) {
+	// Create HTTP server
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%s", port),
 		Handler: app.Routes(),
 	}
 
-	log.Println("Starting server on port: ", port)
+	// Create a channel to receive OS signals
+	signalCh := make(chan os.Signal, 1)
+	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
 
-	if err := srv.ListenAndServe(); err != nil {
+	// Increment the WaitGroup counter
+	wg.Add(1)
+
+	// Start a goroutine to listen for OS signals
+	go func() {
+		defer wg.Done() // Decrement the WaitGroup counter when done
+
+		sig := <-signalCh
+		log.Printf("Received signal: %v. Shutting down...\n", sig)
+
+		// Create a context with a timeout
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+
+		// Shutdown the HTTP server
+		if err := srv.Shutdown(ctx); err != nil {
+			log.Println("Error during server shutdown:", err)
+		}
+
+		// Disconnect from MongoDB
+		log.Println("Disconnecting from mongo")
+		if err := client.Disconnect(ctx); err != nil {
+			log.Println("Error while disconnecting from mongo:", err)
+		}
+	}()
+
+	// Start the HTTP server
+	log.Println("Starting server on port: ", port)
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Panic("Error while starting server: ", err)
 	}
+
+	// Wait for all goroutines to finish before exiting
+	wg.Wait()
 }
 
-func connectTOmongo() (*mongo.Client, error) {
+func connectToMongo() (*mongo.Client, error) {
 	clientOptions := options.Client().ApplyURI(mongoURI)
 	clientOptions.SetAuth(options.Credential{
 		Username: "admin",
@@ -81,7 +105,7 @@ func connectTOmongo() (*mongo.Client, error) {
 
 	defer func() {
 		if err := connect.Disconnect(ctx); err != nil {
-			panic(err)
+			log.Println("Error while disconnecting from mongo:", err)
 		}
 	}()
 
