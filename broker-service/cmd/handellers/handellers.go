@@ -49,6 +49,7 @@ func (app *ServerModel) HandleSubmission(w http.ResponseWriter, r *http.Request)
 		app.writeJsonError(w, err)
 		return
 	}
+	log.Println(requestPayload.Action)
 
 	switch requestPayload.Action {
 	case "auth":
@@ -61,14 +62,14 @@ func (app *ServerModel) HandleSubmission(w http.ResponseWriter, r *http.Request)
 }
 
 func (app *ServerModel) makeLog(w http.ResponseWriter, a LoggerPayload) {
-	log.Panicln("Creating a log by the broker service")
+	log.Println("Making log")
 	jsonData, err := json.MarshalIndent(a, "", "\t")
 	if err != nil {
 		app.writeJsonError(w, err)
 		return
 	}
 
-	request, err := http.NewRequest("POST", "http://logger-service:8080/log", bytes.NewBuffer(jsonData))
+	request, err := http.NewRequest("POST", "http://logger-services:8080/log", bytes.NewBuffer(jsonData))
 	if err != nil {
 		app.writeJsonError(w, err)
 		return
@@ -82,7 +83,7 @@ func (app *ServerModel) makeLog(w http.ResponseWriter, a LoggerPayload) {
 		app.writeJsonError(w, err)
 		return
 	}
-	if response.StatusCode != http.StatusAccepted {
+	if response.StatusCode != http.StatusCreated {
 		app.writeJsonError(w, errors.New("could not create log"))
 		return
 

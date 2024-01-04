@@ -42,8 +42,6 @@ func (app *LoggerService) writeJson(w http.ResponseWriter, status int, data inte
 		return err
 	}
 
-	w.Header().Set("Content-type", "application/json")
-
 	for _, header := range headers {
 		for key, values := range header {
 			for _, value := range values {

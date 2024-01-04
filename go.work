@@ -5,4 +5,5 @@ use (
 	./frontend
 	./authentication-service
 	./logger-service
+	./mailer-service
 )

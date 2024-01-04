@@ -1,7 +1,7 @@
 package handellers
 
 import (
-	"fmt"
+	"log"
 	"logger-service/cmd/data"
 	"net/http"
 )
@@ -22,9 +22,8 @@ func (app *LoggerService) WriteLog(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err := event.Create()
-
 	if err != nil {
-		fmt.Printf("Error while creating log entry: %s", err)
+		log.Printf("Error while creating log entry: %s", err)
 		app.writeJsonError(w, err)
 		return
 	}
@@ -35,4 +34,5 @@ func (app *LoggerService) WriteLog(w http.ResponseWriter, r *http.Request) {
 	}
 
 	app.writeJson(w, http.StatusCreated, response)
+
 }

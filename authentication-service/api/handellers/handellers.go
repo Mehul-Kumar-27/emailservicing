@@ -48,7 +48,7 @@ func (dataBaseModel *DatabaseModel) AuthenticateUser(w http.ResponseWriter, r *h
 
 	payload := jsonResponse{
 		Error:   false,
-		Message: fmt.Sprintf("Welcome %s", user.FirstName),
+		Message: fmt.Sprintf("Welcome %s", user.Email),
 		Data:    user,
 	}
 
@@ -73,7 +73,7 @@ func (app *DatabaseModel) createLog(name, data string) error {
 
 	jsonData, _ := json.Marshal(entry)
 
-	logServiceUrl := "http://log-service:8080/logs"
+	logServiceUrl := "http://logger-services:8080/log"
 	req, err := http.NewRequest("POST", logServiceUrl, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return err

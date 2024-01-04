@@ -16,6 +16,8 @@ services:
     networks:
       - email-network
   logger-services:
+    depends_on:
+      - mongo
     build:
       context: ./../logger-service
       dockerfile: ./../logger-service/logger-service.dockerfile
@@ -23,8 +25,7 @@ services:
     deploy:
       mode: replicated
       replicas: 1
-    depends_on:
-      - mongo
+
     networks:
       - email-network
 
@@ -65,12 +66,22 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: password
-      MONDO_INITDB_DATABASE: email
+      MONDO_INITDB_DATABASE: logs
     restart: always
     ports:
       - 27017:27017
     volumes:
       - ./db-data/mongo/:/data/db/
+    networks:
+      - email-network
+  
+  mailhog:
+    image: mailhog/mailhog
+    ports:
+      - 8025:8025
+      - 1025:1025
+    networks:
+      - email-network
 
 networks:
   email-network:

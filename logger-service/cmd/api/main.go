@@ -32,7 +32,12 @@ func main() {
 	if err != nil {
 		log.Panic("Error while connecting to mongo: ", err)
 	} else {
-		log.Println("Connected to mongo")
+		err := mongoClient.Ping(context.TODO(), nil)
+		if err != nil {
+			log.Panic("Error while pinging mongo: ", err)
+		} else {
+			log.Println("Connected to mongo")
+		}
 	}
 	client = *mongoClient
 
@@ -91,7 +96,7 @@ func connectToMongo() (*mongo.Client, error) {
 	clientOptions := options.Client().ApplyURI(mongoURI)
 	clientOptions.SetAuth(options.Credential{
 		Username: "admin",
-		Password: "12345",
+		Password: "password",
 	})
 
 	connect, err := mongo.Connect(context.TODO(), clientOptions)
@@ -99,15 +104,6 @@ func connectToMongo() (*mongo.Client, error) {
 		log.Println("Error while connecting to mongo: ", err)
 		return nil, err
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	defer func() {
-		if err := connect.Disconnect(ctx); err != nil {
-			log.Println("Error while disconnecting from mongo:", err)
-		}
-	}()
 
 	return connect, nil
 }
