@@ -21,8 +21,7 @@ func (app * MailServer)Routes() *chi.Mux {
 	}))
 
 	mux.Use(middleware.Heartbeat("/ping"))
-	// mux.Get("/", app.Broker)
-	// mux.Post("/handle", app.HandleSubmission)
+	mux.Post("/send", app.SendMailRoute)
 
 	return mux
 }

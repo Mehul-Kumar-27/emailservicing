@@ -10,7 +10,9 @@ import (
 const webPort = 8080
 
 func main() {
-	app := handellers.MailServer{}
+	app := handellers.MailServer{
+		Mail: handellers.CreateMail(),
+	}
 
 	log.Printf("Starting the mailserver on port %v \n", webPort)
 

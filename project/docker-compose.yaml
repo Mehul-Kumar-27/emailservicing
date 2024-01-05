@@ -74,12 +74,36 @@ services:
       - ./db-data/mongo/:/data/db/
     networks:
       - email-network
-  
+
   mailhog:
     image: mailhog/mailhog
     ports:
       - 8025:8025
       - 1025:1025
+    networks:
+      - email-network
+
+  mailer-service:
+    build:
+      context: ./../mailer-service
+      dockerfile: ./../mailer-service/mailer-service.dockerfile
+    restart: always
+    ports:
+      - 8082:8080
+    deploy:
+      mode: replicated
+      replicas: 1
+    depends_on:
+      - mailhog
+    environment:
+      MAIL_DOMAIN: localhost
+      MAIL_PORT: 1025
+      MAIL_HOST: mailhog
+      MAIL_ENCRYPTION: none
+      MAIL_USERNAME: ""
+      MAIL_PASSWORD: ""
+      FROM_NAME: "Mehul Kumar"
+      FROM_ADDRESS: "mehulKumar@dev.com"
     networks:
       - email-network
 

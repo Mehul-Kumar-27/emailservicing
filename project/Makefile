@@ -2,6 +2,7 @@ FRONT_END_BINARY=frontApp
 BROKER_BINARY=brokerApp
 AUTH_BINARY=authApp
 LOG_BINARY=loggerServiceApp
+MAILER_BINARY=mailerServiceApp
 
 
 up: 
@@ -11,7 +12,7 @@ up:
 
 
 ## This command will stop all the docker images and build them again
-up_build: build_broker build_auth build_logger
+up_build: build_broker build_auth build_logger build_mailer
 	@echo "Stopping the docker images ..."
 	docker-compose down
 	@echo "Building the docker images when required ... and starting the docker images"
@@ -42,6 +43,10 @@ build_auth:
 build_front:
 	@echo "Building front end binary..."
 	cd ../frontend/web && env CGO_ENABLED=0 go build -o ${FRONT_END_BINARY}
+	@echo "Done!"
+build_mailer:
+	@echo "Building mailer binary..."
+	cd ../mailer-service && env CGO_ENABLED=0 go build -o ${MAILER_BINARY} ./cmd
 	@echo "Done!"
 
 ## start: starts the front end
