@@ -19,7 +19,7 @@ func main() {
 
 	app := handellers.NewServerModel()
 
-	server := http.Server{
+	server := &http.Server{
 		Addr:    fmt.Sprintf(":%s", webPort), // Fix the format specifier
 		Handler: app.Routes(),
 	}
