@@ -20,6 +20,7 @@ type RequestPayload struct {
 	Action string        `json:"action"`
 	Auth   AuthPayLoad   `json:"auth,omitempty"`
 	Log    LoggerPayload `json:"log,omitempty"`
+	Mail   MailerPayload `json:"mail,omitempty"`
 }
 
 type AuthPayLoad struct {
@@ -30,6 +31,12 @@ type AuthPayLoad struct {
 type LoggerPayload struct {
 	Name string `json:"name,omitempty"`
 	Data string `json:"data,omitempty"`
+}
+type MailerPayload struct {
+	From    string   `json:"from,omitempty"`
+	To      []string `json:"to,omitempty"`
+	Subject string   `json:"subject,omitempty"`
+	Message string   `json:"message,omitempty"`
 }
 
 func (app *ServerModel) Broker(w http.ResponseWriter, r *http.Request) {
@@ -56,6 +63,8 @@ func (app *ServerModel) HandleSubmission(w http.ResponseWriter, r *http.Request)
 		app.authenticate(w, requestPayload.Auth)
 	case "log":
 		app.makeLog(w, requestPayload.Log)
+	case "mail":
+		app.sendMail(w, requestPayload.Mail)
 	default:
 		app.writeJsonError(w, errors.New("unknon method called"))
 	}
@@ -148,5 +157,40 @@ func (app *ServerModel) authenticate(w http.ResponseWriter, a AuthPayLoad) {
 	payloadToSend.Data = jsonFromService.Data
 
 	app.writeJson(w, http.StatusOK, payloadToSend)
+}
 
+func (app *ServerModel) sendMail(w http.ResponseWriter, a MailerPayload) {
+	log.Println("Sending mail")
+	jsonData, err := json.MarshalIndent(a, "", "\t")
+	if err != nil {
+		app.writeJsonError(w, err)
+		return
+	}
+
+	request, err := http.NewRequest("POST", "http://mailer-service:8080/sendMail", bytes.NewBuffer(jsonData))
+	if err != nil {
+		app.writeJsonError(w, err)
+		return
+	}
+
+	request.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	response, err := client.Do(request)
+	if err != nil {
+		app.writeJsonError(w, err)
+		return
+	}
+
+	if response.StatusCode != http.StatusAccepted {
+		app.writeJsonError(w, errors.New("could not send mail"))
+		return
+	}
+
+	jsonPaylod := jsonResponse{
+		Error:   false,
+		Message: "Mail sent",
+	}
+
+	app.writeJson(w, http.StatusAccepted, jsonPaylod)
 }
