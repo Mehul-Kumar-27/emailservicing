@@ -3,6 +3,7 @@ package handellers
 import (
 	"bytes"
 	"html/template"
+	"log"
 	"os"
 	"strconv"
 	"time"
@@ -67,11 +68,15 @@ func (m *Mail) SendMail(msg *Message) error {
 
 	formattedMessage, err := m.buildHTMLmessage(msg)
 	if err != nil {
+		log.Println(err)
+		log.Println("1")
 		return err
 	}
 
 	plainMessage, err := m.buildPlainMessage(msg)
 	if err != nil {
+		log.Println(err)
+		log.Println("2")
 		return err
 	}
 
@@ -87,15 +92,17 @@ func (m *Mail) SendMail(msg *Message) error {
 
 	smtpClient, err := server.Connect()
 	if err != nil {
+		log.Println(err)
+		log.Println("3")
 		return err
 	}
 
 	email := mail.NewMSG()
 	email.SetFrom(msg.From).
 		AddTo(msg.To...).
-		SetSubject(msg.Subject).
-		SetBody(mail.TextPlain, plainMessage).
-		AddAlternative(mail.TextHTML, formattedMessage)
+		SetSubject(msg.Subject)
+	email.SetBody(mail.TextPlain, plainMessage)
+	email.AddAlternative(mail.TextHTML, formattedMessage)
 
 	if len(msg.Attachments) > 0 {
 		for _, attachment := range msg.Attachments {
@@ -104,6 +111,8 @@ func (m *Mail) SendMail(msg *Message) error {
 	}
 
 	if err := email.Send(smtpClient); err != nil {
+		log.Println(err)
+		log.Println("4")
 		return err
 	}
 
@@ -111,7 +120,7 @@ func (m *Mail) SendMail(msg *Message) error {
 }
 
 func (m *Mail) buildHTMLmessage(msg *Message) (string, error) {
-	templateToRender := "./templates/mail.html.gothtml"
+	templateToRender := "./templates/mail.html.gohtml"
 
 	t, err := template.New("email-template").ParseFiles(templateToRender)
 	if err != nil {
@@ -154,7 +163,13 @@ func (m *Mail) buildInLineCss(formattedMessage string) (string, error) {
 }
 
 func (m *Mail) buildPlainMessage(msg *Message) (string, error) {
-	templateToRender := "./templates/mail.plain.gothtml"
+	dir, err := os.Getwd()
+	if err != nil {
+		log.Println(err)
+
+	}
+	log.Println(dir)
+	templateToRender := "./templates/mail.plain.gohtml"
 
 	t, err := template.New("email-plain").ParseFiles(templateToRender)
 	if err != nil {

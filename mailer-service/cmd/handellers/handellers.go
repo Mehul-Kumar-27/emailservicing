@@ -1,6 +1,9 @@
 package handellers
 
-import "net/http"
+import (
+	"log"
+	"net/http"
+)
 
 type mailMessage struct {
 	To      []string `json:"to"`
@@ -10,10 +13,12 @@ type mailMessage struct {
 }
 
 func (app *MailServer) SendMailRoute(w http.ResponseWriter, r *http.Request) {
+	log.Println("Trying to send the mail")
 	var requestPayload mailMessage
 
 	err := app.readJson(r, w, &requestPayload)
 	if err != nil {
+		log.Println(err)
 		app.writeJsonError(w, err, http.StatusBadRequest)
 		return
 	}
@@ -23,6 +28,7 @@ func (app *MailServer) SendMailRoute(w http.ResponseWriter, r *http.Request) {
 		Subject: requestPayload.Subject,
 		Data:    requestPayload.Body,
 	}
+	log.Println(msg)
 
 	err = app.Mail.SendMail(&msg)
 	if err != nil {

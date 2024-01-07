@@ -102,8 +102,8 @@ services:
       MAIL_ENCRYPTION: none
       MAIL_USERNAME: ""
       MAIL_PASSWORD: ""
-      FROM_NAME: "Mehul Kumar"
-      FROM_ADDRESS: "mehulKumar@dev.com"
+      MAIL_FROM_NAME: "Mehul Kumar"
+      MAIL_FROM_ADDRESS: "mehulKumar@dev.com"
     networks:
       - email-network
 
