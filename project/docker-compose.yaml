@@ -106,6 +106,15 @@ services:
       MAIL_FROM_ADDRESS: "mehulKumar@dev.com"
     networks:
       - email-network
+  
+  rabitmq:
+    image: rabbitmq:latest
+    ports:
+      - 5672:5672
+    networks:
+      - email-network
+    volumes:
+      - ./db-data/rabbitmq/:/var/lib/rabbitmq/
 
 networks:
   email-network:
