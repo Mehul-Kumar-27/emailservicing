@@ -8,7 +8,7 @@ import (
 type mailMessage struct {
 	To      []string `json:"to"`
 	Subject string   `json:"subject"`
-	Body    string   `json:"body"`
+	Body    string   `json:"message"`
 	From    string   `json:"from"`
 }
 
@@ -22,13 +22,14 @@ func (app *MailServer) SendMailRoute(w http.ResponseWriter, r *http.Request) {
 		app.writeJsonError(w, err, http.StatusBadRequest)
 		return
 	}
+
+	log.Println(requestPayload)
 	msg := Message{
 		From:    requestPayload.From,
 		To:      requestPayload.To,
 		Subject: requestPayload.Subject,
 		Data:    requestPayload.Body,
 	}
-	log.Println(msg)
 
 	err = app.Mail.SendMail(&msg)
 	if err != nil {
@@ -41,5 +42,5 @@ func (app *MailServer) SendMailRoute(w http.ResponseWriter, r *http.Request) {
 		Message: "Mail sent successfully",
 	}
 
-	app.writeJson(w, http.StatusOK, payload)
+	app.writeJson(w, http.StatusAccepted, payload)
 }

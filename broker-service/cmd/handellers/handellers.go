@@ -181,6 +181,7 @@ func (app *ServerModel) sendMail(w http.ResponseWriter, a MailerPayload) {
 		app.writeJsonError(w, err)
 		return
 	}
+	
 
 	if response.StatusCode != http.StatusAccepted {
 		app.writeJsonError(w, errors.New("could not send mail"))

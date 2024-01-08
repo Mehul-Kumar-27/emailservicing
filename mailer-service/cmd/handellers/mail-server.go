@@ -175,6 +175,7 @@ func (m *Mail) buildPlainMessage(msg *Message) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	log.Println(msg.DataMap)
 
 	var tpl bytes.Buffer
 	if err := t.ExecuteTemplate(&tpl, "body", msg.DataMap); err != nil {
