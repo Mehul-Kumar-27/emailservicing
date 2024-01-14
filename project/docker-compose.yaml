@@ -43,6 +43,18 @@ services:
       - DSN=host=postgres port=5432 user=postgres password=postgres dbname=users sslmode=disable timeZone=UTC connect_timeout=5
     networks:
       - email-network
+  listner-service:
+    build:
+      context: ./../listener-service
+      dockerfile: ./../listener-service/listner-service.dockerfile
+    restart: always
+    deploy:
+      mode: replicated
+      replicas: 1
+    depends_on:
+      - rabitmq
+    networks:
+      - email-network
 
   postgres:
     image: postgres:latest
@@ -106,7 +118,7 @@ services:
       MAIL_FROM_ADDRESS: "mehulKumar@dev.com"
     networks:
       - email-network
-  
+
   rabitmq:
     image: rabbitmq:latest
     ports:

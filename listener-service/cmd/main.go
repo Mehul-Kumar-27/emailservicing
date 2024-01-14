@@ -1,6 +1,7 @@
 package main
 
 import (
+	"listener-service/cmd/events"
 	"log"
 	"time"
 
@@ -25,10 +26,22 @@ func main() {
 	}
 	defer connectionStruct.Connection.Close()
 
+	//Let's start listning to the messages from the rabbitMQ
+	consumer, err := events.NewConsumer(connectionStruct.Connection)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// calling the listen function
+	err = consumer.Listen([]string{"log.INFO", "log.ERROR", "log.WARNING"})
+	if err != nil {
+		log.Fatal(err)
+	}
+
 }
 
 func connectToRabbitMQ(ch chan ConnectionStruct) {
-	var connectionString = "amqp://guest:guest@localhost:5672/"
+	var connectionString = "amqp://guest:guest@rabitmq:5672/"
 	var count = 0
 	var sleepTime = 2 * time.Second
 
@@ -45,7 +58,7 @@ func connectToRabbitMQ(ch chan ConnectionStruct) {
 			ch <- rabbitMQConnection
 		}
 
-		if count > 5 {
+		if count > 10 {
 			log.Println("RabbitMQ is not available. Giving up")
 			rabbitMQConnection := ConnectionStruct{
 				Connection: nil,
