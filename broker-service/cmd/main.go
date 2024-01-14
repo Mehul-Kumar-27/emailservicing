@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -15,29 +16,28 @@ const (
 	webPort = "8080"
 )
 
-type RabbbitMQconnection struct {
-	conn  *amqp.Connection
-	error error
+type ConnectionStruct struct {
+	Connection *amqp.Connection
+	Error      error
 }
 
 func main() {
 	///// Connect to RabbitMQ
-	connectionChan := make(chan RabbbitMQconnection)
-	go connectToRabbitMQ(connectionChan)
-	rabbitMQconnection := <-connectionChan
-	if rabbitMQconnection.error != nil {
-		log.Fatalf("Failed to connect to RabbitMQ: %v", rabbitMQconnection.error)
+	ch := make(chan ConnectionStruct)
+	go connectToRabbitMQ(ch)
+	connectionStruct := <-ch
+	if connectionStruct.Error != nil {
+		log.Fatal(connectionStruct.Error)
 	} else {
 		log.Println("Connected to RabbitMQ")
 	}
-	/// Star
-	defer rabbitMQconnection.conn.Close()
+	defer connectionStruct.Connection.Close()
 
 	logger := log.New(os.Stdout, "API", log.Lshortfile)
 	logger.Printf("Starting API server %s", webPort)
 
 	app := handellers.NewServerModel(
-		rabbitMQconnection.conn,
+		connectionStruct.Connection,
 	)
 
 	server := &http.Server{
@@ -51,25 +51,36 @@ func main() {
 	}
 }
 
-func connectToRabbitMQ(connectionChan chan RabbbitMQconnection) {
-	var url = "amqp://guest:guest@rabbitmq:5672/"
-	count := 10
+
+func connectToRabbitMQ(ch chan ConnectionStruct) {
+	var connectionString = "amqp://guest:guest@rabitmq:5672/"
+	var count = 0
+	var sleepTime = 2 * time.Second
 
 	for {
-		conn, err := amqp.Dial(url)
-		if err == nil {
-			log.Println("RabbitMQ is ready to accept connections")
-			connectionChan <- RabbbitMQconnection{conn: conn, error: nil}
-
+		connection, err := amqp.Dial(connectionString)
+		if err != nil {
+			count++
+			log.Println("RabbbitMQ is probably not available yet. Recieved Errror: ", err)
 		} else {
-			if count <= 10 {
-				log.Printf("RabbitMQ connection is probably not ready yet. error: %s", err)
-			} else {
-				connectionChan <- RabbbitMQconnection{conn: nil, error: err}
-				break
+			rabbitMQConnection := ConnectionStruct{
+				Connection: connection,
+				Error:      nil,
 			}
+			ch <- rabbitMQConnection
 		}
-	}
 
-	log.Println("Failed to connect to RabbitMQ")
+		if count > 10 {
+			log.Println("RabbitMQ is not available. Giving up")
+			rabbitMQConnection := ConnectionStruct{
+				Connection: nil,
+				Error:      err,
+			}
+			ch <- rabbitMQConnection
+			break
+		} else {
+			time.Sleep(sleepTime)
+		}
+
+	}
 }
