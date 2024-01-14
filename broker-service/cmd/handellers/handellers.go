@@ -1,19 +1,25 @@
 package handellers
 
 import (
+	event "broker/cmd/event"
 	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
+
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type ServerModel struct {
+	RabbitMQconnection *amqp.Connection
 }
 
-func NewServerModel() *ServerModel {
-	return &ServerModel{}
+func NewServerModel(rabbitmq *amqp.Connection) *ServerModel {
+	return &ServerModel{
+		RabbitMQconnection: rabbitmq,
+	}
 }
 
 type RequestPayload struct {
@@ -62,7 +68,8 @@ func (app *ServerModel) HandleSubmission(w http.ResponseWriter, r *http.Request)
 	case "auth":
 		app.authenticate(w, requestPayload.Auth)
 	case "log":
-		app.makeLog(w, requestPayload.Log)
+		//app.makeLog(w, requestPayload.Log)
+		app.logEventViaRabbitMQ(&w, requestPayload.Log)
 	case "mail":
 		app.sendMail(w, requestPayload.Mail)
 	default:
@@ -181,7 +188,6 @@ func (app *ServerModel) sendMail(w http.ResponseWriter, a MailerPayload) {
 		app.writeJsonError(w, err)
 		return
 	}
-	
 
 	if response.StatusCode != http.StatusAccepted {
 		app.writeJsonError(w, errors.New("could not send mail"))
@@ -194,4 +200,32 @@ func (app *ServerModel) sendMail(w http.ResponseWriter, a MailerPayload) {
 	}
 
 	app.writeJson(w, http.StatusAccepted, jsonPaylod)
+}
+
+func (app *ServerModel) logEventViaRabbitMQ(w *http.ResponseWriter, l LoggerPayload) {
+	error := app.pushToQueue(l)
+	if error != nil {
+		app.writeJsonError(*w, error)
+		return
+	}
+
+	jsonPaylod := jsonResponse{
+		Error:   false,
+		Message: "Log created Using RabbitMQ",
+	}
+
+	app.writeJson(*w, http.StatusCreated, jsonPaylod)
+}
+
+func (app *ServerModel) pushToQueue(l LoggerPayload) error {
+	emitter, err := event.NewEmitter(app.RabbitMQconnection)
+	if err != nil {
+		return err
+	}
+
+	json, _ := json.Marshal(l)
+
+	emitter.Push(string(json), "log.INFO")
+
+	return nil
 }
