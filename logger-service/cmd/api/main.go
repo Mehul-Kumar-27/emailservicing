@@ -32,25 +32,27 @@ var wg sync.WaitGroup
 
 func main() {
 	// Connect to mongo
-	// mongoClient, err := connectToMongo()
-	// if err != nil {
-	// 	log.Panic("Error while connecting to mongo: ", err)
-	// } else {
-	// 	err := mongoClient.Ping(context.TODO(), nil)
-	// 	if err != nil {
-	// 		log.Panic("Error while pinging mongo: ", err)
-	// 	} else {
-	// 		log.Println("Connected to mongo")
-	// 	}
-	// }
-	///client = *mongoClient
+	mongoClient, err := connectToMongo()
+	if err != nil {
+		log.Panic("Error while connecting to mongo: ", err)
+	} else {
+		err := mongoClient.Ping(context.TODO(), nil)
+		if err != nil {
+			log.Panic("Error while pinging mongo: ", err)
+		} else {
+			log.Println("Connected to mongo")
+		}
+	}
+	client = *mongoClient
 
 	// Create logger service
 	app := handellers.LoggerService{
 		Modles: data.New(&client),
 	}
 
-	e := rpc.Register(new(r.RPCServer))
+	rpcServerConnection := r.NewRpcServer(&client)
+
+	e := rpc.Register(rpcServerConnection)
 	if e != nil {
 		log.Println("Error while registering RPC server:", e)
 		return
@@ -139,6 +141,7 @@ func rpcListen(signalChan chan os.Signal) {
 			log.Println("Error while accepting connection:", err)
 			continue
 		}
+		log.Println("Connection accepted")
 		go rpc.ServeConn(rpcConnections)
 	}
 }

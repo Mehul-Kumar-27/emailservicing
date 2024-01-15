@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/rpc"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -45,6 +46,11 @@ type MailerPayload struct {
 	Message string   `json:"message,omitempty"`
 }
 
+type RPCloggerPayload struct {
+	Name string
+	Data string
+}
+
 func (app *ServerModel) Broker(w http.ResponseWriter, r *http.Request) {
 	payload := jsonResponse{
 		Error:   false,
@@ -69,7 +75,8 @@ func (app *ServerModel) HandleSubmission(w http.ResponseWriter, r *http.Request)
 		app.authenticate(w, requestPayload.Auth)
 	case "log":
 		//app.makeLog(w, requestPayload.Log)
-		app.logEventViaRabbitMQ(&w, requestPayload.Log)
+		//app.logEventViaRabbitMQ(&w, requestPayload.Log)
+		app.logViaRPC(w, requestPayload.Log)
 	case "mail":
 		app.sendMail(w, requestPayload.Mail)
 	default:
@@ -228,4 +235,31 @@ func (app *ServerModel) pushToQueue(l LoggerPayload) error {
 	emitter.Push(string(json), "log.INFO")
 
 	return nil
+}
+
+func (app *ServerModel) logViaRPC(w http.ResponseWriter, l LoggerPayload) {
+	client, err := rpc.Dial("tcp", "logger-services:5001")
+	if err != nil {
+		log.Println("Error while dialing RPC server:", err)
+		app.writeJsonError(w, err)
+	}
+
+	var payload RPCloggerPayload
+	payload.Name = l.Name
+	payload.Data = l.Data
+
+	var response string
+
+	err = client.Call("RPCServer.LogInfo", payload, &response)
+	if err != nil {
+		log.Println("Error while making RPC call:", err)
+		app.writeJsonError(w, err)
+	}
+
+	var jsonPaylod jsonResponse
+
+	jsonPaylod.Error = false
+	jsonPaylod.Message = response
+
+	app.writeJson(w, http.StatusCreated, jsonPaylod)
 }
