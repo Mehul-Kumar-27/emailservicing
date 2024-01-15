@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	r "logger-service/cmd/rpc"
+	"net"
 	"os"
 	"os/signal"
 	"sync"
@@ -16,10 +18,12 @@ import (
 	"logger-service/cmd/api/handellers"
 	"logger-service/cmd/data"
 	"net/http"
+	"net/rpc"
 )
 
 const (
 	port     = "8080"
+	rpcPort  = "5001"
 	mongoURI = "mongodb://mongo:27017"
 )
 
@@ -28,33 +32,39 @@ var wg sync.WaitGroup
 
 func main() {
 	// Connect to mongo
-	mongoClient, err := connectToMongo()
-	if err != nil {
-		log.Panic("Error while connecting to mongo: ", err)
-	} else {
-		err := mongoClient.Ping(context.TODO(), nil)
-		if err != nil {
-			log.Panic("Error while pinging mongo: ", err)
-		} else {
-			log.Println("Connected to mongo")
-		}
-	}
-	client = *mongoClient
+	// mongoClient, err := connectToMongo()
+	// if err != nil {
+	// 	log.Panic("Error while connecting to mongo: ", err)
+	// } else {
+	// 	err := mongoClient.Ping(context.TODO(), nil)
+	// 	if err != nil {
+	// 		log.Panic("Error while pinging mongo: ", err)
+	// 	} else {
+	// 		log.Println("Connected to mongo")
+	// 	}
+	// }
+	///client = *mongoClient
 
 	// Create logger service
 	app := handellers.LoggerService{
 		Modles: data.New(&client),
 	}
 
+	e := rpc.Register(new(r.RPCServer))
+	if e != nil {
+		log.Println("Error while registering RPC server:", e)
+		return
+	}
+	// Create a channel to receive OS signals
+	signalCh := make(chan os.Signal, 1)
+	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
+	go rpcListen(signalCh)
+
 	// Create HTTP server
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%s", port),
 		Handler: app.Routes(),
 	}
-
-	// Create a channel to receive OS signals
-	signalCh := make(chan os.Signal, 1)
-	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
 
 	// Increment the WaitGroup counter
 	wg.Add(1)
@@ -106,4 +116,29 @@ func connectToMongo() (*mongo.Client, error) {
 	}
 
 	return connect, nil
+}
+
+func rpcListen(signalChan chan os.Signal) {
+	log.Printf("Starting RPC server on port: %s", rpcPort)
+
+	// Create a TCP listener
+	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%s", rpcPort))
+	if err != nil {
+		log.Println("Error while creating TCP listener:", err)
+		signalChan <- syscall.SIGTERM
+	}
+	go func() {
+		<-signalChan
+		listener.Close()
+	}()
+	defer listener.Close()
+
+	for {
+		rpcConnections, err := listener.Accept()
+		if err != nil {
+			log.Println("Error while accepting connection:", err)
+			continue
+		}
+		go rpc.ServeConn(rpcConnections)
+	}
 }
