@@ -24,6 +24,7 @@ import (
 const (
 	port     = "8080"
 	rpcPort  = "5001"
+	GrpcPort = "50001"
 	mongoURI = "mongodb://mongo:27017"
 )
 
