@@ -3,14 +3,19 @@ package handellers
 import (
 	event "broker/cmd/event"
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
+	"logger-service/cmd/api/logs"
 	"net/http"
 	"net/rpc"
+	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type ServerModel struct {
@@ -76,7 +81,8 @@ func (app *ServerModel) HandleSubmission(w http.ResponseWriter, r *http.Request)
 	case "log":
 		//app.makeLog(w, requestPayload.Log)
 		//app.logEventViaRabbitMQ(&w, requestPayload.Log)
-		app.logViaRPC(w, requestPayload.Log)
+		//app.logViaRPC(w, requestPayload.Log)
+		app.logViaGRPC(w, requestPayload.Log)
 	case "mail":
 		app.sendMail(w, requestPayload.Mail)
 	default:
@@ -260,6 +266,42 @@ func (app *ServerModel) logViaRPC(w http.ResponseWriter, l LoggerPayload) {
 
 	jsonPaylod.Error = false
 	jsonPaylod.Message = response
+
+	app.writeJson(w, http.StatusCreated, jsonPaylod)
+}
+
+func (app *ServerModel) logViaGRPC(w http.ResponseWriter, l LoggerPayload) {
+
+	connection, err := grpc.Dial("logger-services:50001", grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	if err != nil {
+		log.Println("Error while dialing RPC server:", err)
+		app.writeJsonError(w, err)
+	}
+
+	defer connection.Close()
+
+	client := logs.NewLogServeiceClient(connection)
+
+	ctx, cancle := context.WithTimeout(context.Background(), time.Second*3)
+
+	defer cancle()
+
+	response, err := client.WriteLog(ctx, &logs.LogRequest{
+		LogEntry: &logs.Logs{
+			Name: l.Name,
+			Data: l.Data,
+		},
+	})
+
+	if err != nil {
+		log.Println("Error while making RPC call:", err)
+		app.writeJsonError(w, err)
+	}
+
+	var jsonPaylod jsonResponse
+
+	jsonPaylod.Error = false
+	jsonPaylod.Message = response.Message
 
 	app.writeJson(w, http.StatusCreated, jsonPaylod)
 }

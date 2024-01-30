@@ -78,12 +78,26 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: password
-      MONDO_INITDB_DATABASE: logs
+      MONGO_INITDB_DATABASE: logs
     restart: always
     ports:
       - 27017:27017
     volumes:
       - ./db-data/mongo/:/data/db/
+    networks:
+      - email-network
+
+  mongo-express:
+    depends_on:
+      - mongo
+    image: mongo-express
+    ports:
+      - 4000:8082
+    restart: always
+    environment:
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=admin
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=password
+      - ME_CONFIG_MONGODB_SERVER=mongo
     networks:
       - email-network
 

@@ -4,7 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
-	r "logger-service/cmd/rpc"
+	grpctry "logger-service/cmd/api/grpc"
+//	r "logger-service/cmd/rpc"
 	"net"
 	"os"
 	"os/signal"
@@ -28,7 +29,7 @@ const (
 	mongoURI = "mongodb://mongo:27017"
 )
 
-var client = mongo.Client{}
+var Client = mongo.Client{}
 var wg sync.WaitGroup
 
 func main() {
@@ -44,24 +45,28 @@ func main() {
 			log.Println("Connected to mongo")
 		}
 	}
-	client = *mongoClient
+	Client = *mongoClient
 
 	// Create logger service
 	app := handellers.LoggerService{
-		Modles: data.New(&client),
+		Modles: data.New(&Client),
 	}
 
-	rpcServerConnection := r.NewRpcServer(&client)
+	grpcLogger := grpctry.NewLogGrpcServer(&Client)
+	go grpcLogger.ListenTOGRPC(GrpcPort)
 
-	e := rpc.Register(rpcServerConnection)
-	if e != nil {
-		log.Println("Error while registering RPC server:", e)
-		return
-	}
+	// rpcServerConnection := r.NewRpcServer(&Client)
+
+	// e := rpc.Register(rpcServerConnection)
+	// if e != nil {
+	// 	log.Println("Error while registering RPC server:", e)
+	// 	return
+	// }
+
 	// Create a channel to receive OS signals
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
-	go rpcListen(signalCh)
+//	go rpcListen(signalCh)
 
 	// Create HTTP server
 	srv := &http.Server{
@@ -90,7 +95,7 @@ func main() {
 
 		// Disconnect from MongoDB
 		log.Println("Disconnecting from mongo")
-		if err := client.Disconnect(ctx); err != nil {
+		if err := Client.Disconnect(ctx); err != nil {
 			log.Println("Error while disconnecting from mongo:", err)
 		}
 	}()
@@ -106,6 +111,7 @@ func main() {
 }
 
 func connectToMongo() (*mongo.Client, error) {
+	log.Println("Connecting to mongo")
 	clientOptions := options.Client().ApplyURI(mongoURI)
 	clientOptions.SetAuth(options.Credential{
 		Username: "admin",
